@@ -17,19 +17,132 @@ class AudioDeviceManager(
             Context.AUDIO_SERVICE
         ) as AudioManager
 
-    fun testBluetoothInput() {
+    fun setBluetoothInputRoute(): Boolean {
 
-        val communicationDevices =
-            audioManager.getAvailableCommunicationDevices()
+        val device =
+            audioManager
+                .getAvailableCommunicationDevices()
+                .firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                }
 
-        communicationDevices.forEach { communicationDevice ->
+        if (device == null) {
             println(
-                "AudioTest: CommunicationDevice: " +
-                    "id=${communicationDevice.id}, " +
-                    "type=${communicationDevice.type}, " +
-                    "name=${communicationDevice.productName}"
+                "AudioDevice: Bluetooth SCO não encontrado"
             )
+            return false
         }
+
+        println(
+            "AudioDevice: selecionando Bluetooth = " +
+                device.productName
+        )
+
+        val result =
+            audioManager.setCommunicationDevice(device)
+
+        println(
+            "AudioDevice: setCommunicationDevice=" +
+                result
+        )
+
+        return result
+    }
+
+    fun createBluetoothAudioRecord(): AudioRecord? {
+
+        val device =
+            audioManager
+                .getDevices(AudioManager.GET_DEVICES_INPUTS)
+                .firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                }
+
+        if (device == null) {
+            println(
+                "AudioRecord: Bluetooth T10-L não encontrado"
+            )
+            return null
+        }
+
+        println(
+            "AudioRecord: dispositivo = " +
+                "id=${device.id}, " +
+                "name=${device.productName}"
+        )
+
+        val sampleRate = 8000
+        val channelMask = AudioFormat.CHANNEL_IN_MONO
+        val encoding = AudioFormat.ENCODING_PCM_16BIT
+
+        val minBuffer =
+            AudioRecord.getMinBufferSize(
+                sampleRate,
+                channelMask,
+                encoding
+            )
+
+        println(
+            "AudioRecord: minBuffer=$minBuffer"
+        )
+
+        if (minBuffer <= 0) {
+            println(
+                "AudioRecord: minBuffer inválido"
+            )
+            return null
+        }
+
+        val audioRecord =
+            AudioRecord.Builder()
+                .setAudioSource(
+                    MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(encoding)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(channelMask)
+                        .build()
+                )
+                .setBufferSizeInBytes(
+                    minBuffer * 2
+                )
+                .build()
+
+        val preferred =
+            audioRecord.setPreferredDevice(device)
+
+        println(
+            "AudioRecord: setPreferredDevice=" +
+                preferred
+        )
+
+        println(
+            "AudioRecord: preferredDevice=" +
+                audioRecord.preferredDevice?.productName
+        )
+
+        if (
+            audioRecord.state !=
+            AudioRecord.STATE_INITIALIZED
+        ) {
+            println(
+                "AudioRecord: NÃO inicializado"
+            )
+
+            audioRecord.release()
+            return null
+        }
+
+        println(
+            "AudioRecord: inicializado"
+        )
+
+        return audioRecord
+    }
+
+    fun testBluetoothInput() {
 
         val device =
             audioManager
@@ -57,15 +170,18 @@ class AudioDeviceManager(
                     it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
                 }
 
-        println(
-            "AudioTest: communicationDevice=" +
-                communicationDevice?.productName
-        )
+        if (communicationDevice == null) {
+            println(
+                "AudioTest: T10-L não encontrado entre os " +
+                    "dispositivos de comunicação"
+            )
+            return
+        }
 
         val communicationResult =
-            communicationDevice?.let {
-                audioManager.setCommunicationDevice(it)
-            } ?: false
+            audioManager.setCommunicationDevice(
+                communicationDevice
+            )
 
         println(
             "AudioTest: setCommunicationDevice=" +
@@ -73,8 +189,8 @@ class AudioDeviceManager(
         )
 
         println(
-            "AudioTest: setCommunicationDevice=" +
-                communicationResult
+            "AudioTest: communicationDevice=" +
+                audioManager.communicationDevice?.productName
         )
 
         val sampleRate = 8000
@@ -92,6 +208,11 @@ class AudioDeviceManager(
             "AudioTest: minBuffer=$minBuffer"
         )
 
+        if (minBuffer <= 0) {
+            println("AudioTest: minBuffer inválido")
+            return
+        }
+
         val audioRecord =
             AudioRecord.Builder()
                 .setAudioSource(
@@ -104,14 +225,17 @@ class AudioDeviceManager(
                         .setChannelMask(channelMask)
                         .build()
                 )
-                .setBufferSizeInBytes(minBuffer * 2)
+                .setBufferSizeInBytes(
+                    minBuffer * 2
+                )
                 .build()
 
         val preferred =
             audioRecord.setPreferredDevice(device)
 
         println(
-            "AudioTest: setPreferredDevice=$preferred"
+            "AudioTest: setPreferredDevice=" +
+                preferred
         )
 
         println(
@@ -119,17 +243,28 @@ class AudioDeviceManager(
                 audioRecord.preferredDevice?.productName
         )
 
-        if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
-            println("AudioTest: AudioRecord NÃO inicializado")
+        if (
+            audioRecord.state !=
+            AudioRecord.STATE_INITIALIZED
+        ) {
+            println(
+                "AudioTest: AudioRecord NÃO inicializado"
+            )
+
             audioRecord.release()
             return
         }
 
-        println("AudioTest: AudioRecord inicializado")
-
-        val buffer = ShortArray(minBuffer / 2)
+        println(
+            "AudioTest: AudioRecord inicializado"
+        )
 
         audioRecord.startRecording()
+
+        println(
+            "AudioTest: recordingState=" +
+                audioRecord.recordingState
+        )
 
         val activeConfig =
             audioRecord.activeRecordingConfiguration
@@ -140,11 +275,14 @@ class AudioDeviceManager(
         )
 
         println(
-            "AudioTest: recordingState=" +
-                audioRecord.recordingState
+            "AudioTest: activeConfig=" +
+                activeConfig
         )
 
-        repeat(100) { index ->
+        val buffer =
+            ShortArray(minBuffer / 2)
+
+        repeat(1) { index ->
 
             val read =
                 audioRecord.read(
@@ -153,25 +291,56 @@ class AudioDeviceManager(
                     buffer.size
                 )
 
-            var peak = 0
+            var peak = 0L
+            var sumSquares = 0.0
 
-            for (i in 0 until maxOf(read, 0)) {
-                val value =
-                    kotlin.math.abs(buffer[i].toInt())
+            if (read > 0) {
 
-                if (value > peak) {
-                    peak = value
+                for (i in 0 until read) {
+
+                    val sample =
+                        buffer[i].toLong()
+
+                    val absolute =
+                        kotlin.math.abs(sample)
+
+                    if (absolute > peak) {
+                        peak = absolute
+                    }
+
+                    sumSquares +=
+                        sample.toDouble() *
+                        sample.toDouble()
                 }
-            }
 
-            println(
-                "AudioTest: read=$read peak=$peak"
-            )
+                val rms =
+                    kotlin.math.sqrt(
+                        sumSquares / read
+                    )
+
+                println(
+                    "AudioTest: " +
+                        "[$index] " +
+                        "read=$read " +
+                        "peak=$peak " +
+                        "rms=$rms"
+                )
+
+            } else {
+
+                println(
+                    "AudioTest: " +
+                        "[$index] " +
+                        "read=$read"
+                )
+            }
         }
 
         audioRecord.stop()
 
-        println("AudioTest: captura finalizada")
+        println(
+            "AudioTest: captura finalizada"
+        )
 
         audioRecord.release()
     }
@@ -204,6 +373,9 @@ class AudioDeviceManager(
         if (device == null) {
             return false
         }
+
+        audioManager.mode =
+            AudioManager.MODE_IN_COMMUNICATION
 
         return audioManager.setCommunicationDevice(device)
     }

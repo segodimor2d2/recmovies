@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
 
         AudioDeviceManager(this).logInputDevices()
         AudioDeviceManager(this).logCommunicationDevices()
+        AudioDeviceManager(this).testBluetoothInput()
 
         val cameraGranted =
             ContextCompat.checkSelfPermission(

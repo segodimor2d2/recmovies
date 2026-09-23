@@ -95,6 +95,118 @@ e quero que a entrada do microfone eu possa escolher para ser feita via cabo de 
 meu porjeto esta iniciado ja com hello world
 
 
+---
+$$$$
+
+
+Esse resultado fecha uma parte importante do diagnóstico.
+
+### O que aconteceu
+
+Com `VOICE_COMMUNICATION`:
+
+```text
+setCommunicationDevice=false
+setPreferredDevice=true
+preferredDevice=T10-L
+activeDevice=null
+```
+
+Ou seja, **a seleção do `AudioRecord` aceita o T10-L como preferido, mas o Android não está estabelecendo o T10-L como dispositivo de comunicação**.
+
+Isso é coerente com a API: `setCommunicationDevice()` só aceita dispositivos retornados por `getAvailableCommunicationDevices()`. ([Android Developers][1])
+
+E anteriormente nós tínhamos visto o T10-L nessa lista. Agora o `AudioDeviceInfo` encontrado pelo `GET_DEVICES_INPUTS` tem `id=16536`, e a chamada retorna `false`. Portanto, não devemos concluir que o `AudioRecord` está capturando áudio real do T10-L apenas porque `preferredDevice=T10-L`.
+
+Mais importante: a própria documentação oficial mostra a sequência `VOICE_COMMUNICATION` + `setPreferredDevice()` + `setCommunicationDevice()` para Bluetooth HFP. ([Android Developers][2])
+
+### Acho que encontramos o ponto que precisamos investigar
+
+Não é mais necessário ficar alterando `AudioSource`.
+
+O próximo teste deve responder uma pergunta simples:
+
+**O T10-L está presente na lista de dispositivos de comunicação no momento em que `testBluetoothInput()` roda?**
+
+No começo de `testBluetoothInput()`, antes de procurar o dispositivo de entrada, coloque:
+
+```kotlin
+val communicationDevices =
+    audioManager.getAvailableCommunicationDevices()
+
+communicationDevices.forEach { communicationDevice ->
+    println(
+        "AudioTest: CommunicationDevice: " +
+            "id=${communicationDevice.id}, " +
+            "type=${communicationDevice.type}, " +
+            "name=${communicationDevice.productName}"
+    )
+}
+```
+
+Então o início da função ficará assim:
+
+```kotlin
+fun testBluetoothInput() {
+
+    val communicationDevices =
+        audioManager.getAvailableCommunicationDevices()
+
+    communicationDevices.forEach { communicationDevice ->
+        println(
+            "AudioTest: CommunicationDevice: " +
+                "id=${communicationDevice.id}, " +
+                "type=${communicationDevice.type}, " +
+                "name=${communicationDevice.productName}"
+        )
+    }
+
+    val device =
+        audioManager
+            .getDevices(AudioManager.GET_DEVICES_INPUTS)
+            .firstOrNull {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+            }
+
+    // resto permanece igual
+```
+
+**Não mude mais nada.**
+
+Rode novamente:
+
+```bash
+./gradlew installDebug && adb shell am start -n com.rec.recmov/.MainActivity
+```
+
+e:
+
+```bash
+adb logcat -c
+adb logcat -v threadtime | grep -E "AudioTest"
+```
+
+Quero ver principalmente se aparece:
+
+```text
+AudioTest: CommunicationDevice: ... type=7 ... name=T10-L
+```
+
+ou se **não aparece**.
+
+Isso vai explicar diretamente por que:
+
+```text
+setCommunicationDevice=false
+```
+
+e aí seguimos para o próximo passo.
+
+[1]: https://developer.android.com/reference/kotlin/android/media/AudioManager.html?authuser=451499271&utm_source=chatgpt.com "AudioManager  |  API reference  |  Android Developers"
+[2]: https://developer.android.com/develop/xr/jetpack-xr-sdk/access-hardware-projected-context?authuser=5&hl=pt-br&utm_source=chatgpt.com "Usar um contexto projetado para acessar hardware em óculos de áudio e óculos de exibição  |  Android XR for Jetpack XR SDK  |  Android Developers"
+
+---
+$$$$
 
 ```bash
 
@@ -128,13 +240,21 @@ adb shell am start -n com.rec.recmov/.MainActivity
 feat: entrada de camera e preview funcionando
 feat: rec stop funcionando
 feat: mic device funcionando
+feat: mic bluetooth logs
 
 
 adb logcat -c && adb logcat -v threadtime | grep -E
-adb logcat -c && adb logcat -v threadtime | grep -E "CommunicationDevice"
+adb logcat -c && adb logcat -v threadtime | grep -E "AudioInputDevice"
+
+adb logcat -c && adb logcat -v threadtime | grep -E "AudioTest"
+
+"AudioInputDevice"
 "Bluetooth routing"
 "AudioDevice"
 
+
+
+./gradlew installDebug && adb shell am start -n com.rec.recmov/.MainActivity && adb logcat -c && adb logcat -v threadtime | grep -E "AudioTest"
 
 ```
 

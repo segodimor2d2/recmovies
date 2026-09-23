@@ -60,4 +60,6 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.camera.video)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 }

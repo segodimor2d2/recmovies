@@ -126,6 +126,8 @@ adb shell am start -n com.rec.recmov/.MainActivity
 ./gradlew installDebug && adb shell am start -n com.rec.recmov/.MainActivity 
 
 feat: entrada de camera e preview funcionando
+feat: rec stop funcionando
+feat: mic device funcionando
 
 ```
 

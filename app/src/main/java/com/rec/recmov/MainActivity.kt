@@ -19,54 +19,66 @@ class MainActivity : ComponentActivity() {
 
     private var showCamera = false
 
-    private val cameraPermissionLauncher =
+    private val permissionsLauncher =
         registerForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { granted ->
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
 
-            showCamera = granted
+            val cameraGranted =
+                permissions[Manifest.permission.CAMERA] == true
 
-            if (granted) {
-                setContentView()
-            }
+            val audioGranted =
+                permissions[Manifest.permission.RECORD_AUDIO] == true
+
+            showCamera = cameraGranted && audioGranted
+
+            setContentView()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (
+        val cameraGranted =
             ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.CAMERA
             ) == PackageManager.PERMISSION_GRANTED
-        ) {
+
+        val audioGranted =
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+
+        if (cameraGranted && audioGranted) {
+
             showCamera = true
+            setContentView()
+
         } else {
-            cameraPermissionLauncher.launch(
-                Manifest.permission.CAMERA
+
+            permissionsLauncher.launch(
+                arrayOf(
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.RECORD_AUDIO
+                )
             )
         }
-
-        setContentView()
     }
 
     private fun setContentView() {
-
         setContent {
-
             RecmovTheme {
-
                 if (showCamera) {
-
                     CameraScreen()
-
                 } else {
-
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Permissão da câmera necessária")
+                        Text(
+                            "Permissões da câmera e do microfone necessárias"
+                        )
                     }
                 }
             }

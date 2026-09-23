@@ -77,6 +77,7 @@ fun CameraScreen(
                                 context,
                                 mediaStoreOutput
                             )
+                            .withAudioEnabled()
                             .start(
                                 ContextCompat.getMainExecutor(context)
                             ) { event ->

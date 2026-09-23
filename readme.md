@@ -129,6 +129,13 @@ feat: entrada de camera e preview funcionando
 feat: rec stop funcionando
 feat: mic device funcionando
 
+
+adb logcat -c && adb logcat -v threadtime | grep -E
+adb logcat -c && adb logcat -v threadtime | grep -E "CommunicationDevice"
+"Bluetooth routing"
+"AudioDevice"
+
+
 ```
 
 ---

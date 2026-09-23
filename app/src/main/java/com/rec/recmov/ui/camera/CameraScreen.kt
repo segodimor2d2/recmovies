@@ -18,12 +18,22 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rec.recmov.viewmodel.CameraViewModel
 import androidx.core.content.ContextCompat
+import androidx.compose.foundation.layout.Column
+import com.rec.recmov.audio.AudioDeviceManager
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun CameraScreen(
     viewModel: CameraViewModel = viewModel()
 ) {
     val context = LocalContext.current
+
+    val audioDeviceManager = AudioDeviceManager(context)
+
+    val audioDevices =
+        audioDeviceManager.getInputDevices()
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -33,6 +43,59 @@ fun CameraScreen(
             viewModel = viewModel,
             modifier = Modifier.fillMaxSize()
         )
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 64.dp)
+        ) {
+            audioDevices.forEach { device ->
+                Text(
+                    text = "${device.productName} (${device.type})",
+                    modifier = Modifier
+                        .background(
+                            Color.Black.copy(alpha = 0.5f)
+                        )
+                        .clickable {
+
+                            viewModel.selectAudioDevice(device)
+
+                            if (
+                                device.type ==
+                                android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                            ) {
+                                val success =
+                                    audioDeviceManager
+                                        .setBluetoothCommunicationDevice()
+
+                                println(
+                                    "AudioDevice: Bluetooth routing = $success"
+                                )
+                            }
+                        }
+                        .padding(10.dp),
+                    color = Color.White
+                )
+            }
+        }
+
+
+        viewModel.selectedAudioDevice?.let { device ->
+
+            Text(
+                text = "Selecionado: ${device.productName}\n" +
+                        "id=${device.id} type=${device.type}",
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 100.dp)
+                    .background(
+                        Color.Black.copy(alpha = 0.5f)
+                    )
+                    .padding(10.dp),
+                color = Color.White
+            )
+        }
+
 
         Button(
             onClick = {

@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.rec.recmov.ui.camera.CameraScreen
 import com.rec.recmov.ui.theme.RecmovTheme
+import com.rec.recmov.audio.AudioDeviceManager
 
 class MainActivity : ComponentActivity() {
 
@@ -37,6 +38,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        AudioDeviceManager(this).logInputDevices()
+        AudioDeviceManager(this).logCommunicationDevices()
 
         val cameraGranted =
             ContextCompat.checkSelfPermission(

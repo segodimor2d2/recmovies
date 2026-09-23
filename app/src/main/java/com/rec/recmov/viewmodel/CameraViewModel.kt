@@ -1,5 +1,6 @@
 package com.rec.recmov.viewmodel
 
+import android.media.AudioDeviceInfo
 import androidx.camera.video.Recording
 import androidx.camera.video.Recorder
 import androidx.camera.video.VideoCapture
@@ -33,4 +34,12 @@ class CameraViewModel : ViewModel() {
     ) {
         this.videoCapture = videoCapture
     }
+
+    var selectedAudioDevice: AudioDeviceInfo? by mutableStateOf(null)
+        private set
+
+    fun selectAudioDevice(device: AudioDeviceInfo) {
+        selectedAudioDevice = device
+    }
+
 }

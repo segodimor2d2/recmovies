@@ -117,8 +117,15 @@ $$$$
 
 cd /home/segodimo/05android/recmovies/ | term
 
+
+
 adb shell am start -n com.rec.recmov/.MainActivity
+
+./gradlew assembleRelease
+
 ./gradlew installDebug && adb shell am start -n com.rec.recmov/.MainActivity 
+
+feat: entrada de camera e preview funcionando
 
 ```
 

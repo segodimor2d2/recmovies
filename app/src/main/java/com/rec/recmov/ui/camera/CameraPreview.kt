@@ -1,25 +1,18 @@
 package com.rec.recmov.ui.camera
 
 import android.Manifest
-import android.content.ContentValues
 import android.content.pm.PackageManager
-import android.provider.MediaStore
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
-import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
+import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -33,14 +26,14 @@ fun CameraPreview(
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var videoCapture by remember {
+    val videoCaptureState = remember {
         mutableStateOf<VideoCapture<Recorder>?>(null)
     }
 
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            androidx.camera.view.PreviewView(context)
+            PreviewView(context)
         },
         update = { previewView ->
 
@@ -78,10 +71,11 @@ fun CameraPreview(
                     )
                     .build()
 
-                val newVideoCapture =
+                val videoCapture =
                     VideoCapture.withOutput(recorder)
 
-                videoCapture = newVideoCapture
+                videoCaptureState.value = videoCapture
+                viewModel.setVideoCapture(videoCapture)
 
                 val cameraSelector =
                     CameraSelector.DEFAULT_BACK_CAMERA
@@ -92,17 +86,10 @@ fun CameraPreview(
                     lifecycleOwner,
                     cameraSelector,
                     preview,
-                    newVideoCapture
+                    videoCapture
                 )
 
             }, ContextCompat.getMainExecutor(previewView.context))
         }
     )
-
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.recording?.stop()
-            viewModel.setRecording(null)
-        }
-    }
 }

@@ -81,7 +81,7 @@ fun CameraScreen(
 
         Box(
             modifier = Modifier
-                .align(Alignment.TopEnd)
+                .align(Alignment.CenterEnd)
                 .padding(
                     top = 50.dp,
                     end = 12.dp
@@ -98,11 +98,7 @@ fun CameraScreen(
                 )
         ) {
             Text(
-                text = if (showAudioDevices) {
-                    "▲"
-                } else {
-                    "▼"
-                },
+                text = if (showAudioDevices) { ">" } else { "<" },
                 color = Color.White
             )
         }
@@ -115,10 +111,10 @@ fun CameraScreen(
 
             Column(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
+                    .align(Alignment.CenterEnd)
                     .padding(
                         top = 100.dp,
-                        end = 12.dp
+                        end = 42.dp
                     )
             ) {
 

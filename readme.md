@@ -525,6 +525,64 @@ O arquivo de **288 KiB** também é compatível com vários segundos de PCM 8 kH
 ---
 $$$$
 
+
+Sim — **isso é uma observação importante**. Se você está ouvindo/verificando o MP4 e consegue confirmar que **o áudio gravado dentro do vídeo é realmente o Bluetooth T10-L**, então nossa conclusão anterior precisa ser revista.
+
+O fato de o log do CameraX mostrar:
+
+```text
+IN_MICROPHONE
+IN_MICROPHONE_BACK
+source CAMCORDER
+```
+
+**não prova sozinho que o áudio final veio do microfone interno**.
+
+O que pode estar acontecendo é:
+
+```text
+Bluetooth T10-L
+      │
+      │ setCommunicationDevice()
+      ▼
+Android Audio Policy
+      │
+      ├── AudioRecord Bluetooth → nosso WAV
+      │
+      └── CameraX Recorder → áudio Bluetooth
+```
+
+Ou seja, o `setCommunicationDevice()` pode estar alterando a rota de captura usada pelo sistema de uma maneira que o CameraX acaba respeitando, mesmo que a configuração interna da câmera continue aparecendo como `CAMCORDER`.
+
+### Vamos confirmar antes de mudar qualquer código
+
+Não precisamos especular. O teste mais importante agora é comparar os dois áudios.
+
+Pegue o MP4 que acabou de gravar e rode:
+
+```bash
+ffprobe -hide_banner "SEU_VIDEO.mp4"
+```
+
+Depois extraia o áudio:
+
+```bash
+ffmpeg -y -i "SEU_VIDEO.mp4" -vn -acodec pcm_s16le /tmp/video_audio.wav
+```
+
+E compare com o nosso WAV Bluetooth:
+
+```bash
+ffprobe -hide_banner /tmp/video_audio.wav
+```
+
+Se quiser uma confirmação ainda mais objetiva, podemos comparar a duração e o conteúdo dos dois áudios.
+
+**Não mexa no código ainda.** Se o áudio dentro do MP4 realmente for o T10-L, isso muda bastante a estratégia: talvez **não seja necessário substituir o áudio do CameraX**, e podemos manter a implementação muito mais simples.
+
+---
+$$$$
+
 ```bash
 
 e app/build.gradle.kts
@@ -563,6 +621,7 @@ feat: entrada de camera e preview funcionando
 feat: rec stop funcionando
 feat: mic device funcionando
 feat: mic bluetooth logs
+feat: mic bluetooth funcionando 
 
 
 adb logcat -c && adb logcat -v threadtime | grep -E
@@ -577,8 +636,13 @@ adb logcat -c && adb logcat -v threadtime | grep -E "AudioDevice"
 
 
 adb shell 'ls -lt /sdcard/Movies/*.mp4 2>/dev/null | head'
-adb pull /sdcard/Movies/recmov_1790189281900.mp4 /tmp/recmov-test.mp4
+adb pull /sdcard/Movies/recmov_1790196680934.mp4 /tmp/recmov-test.mp4
 ffprobe -hide_banner /tmp/recmov-test.mp4
+
+ffprobe -hide_banner "/tmp/recmov-test.mp4"
+ffmpeg -y -i "/tmp/recmov-test.mp4" -vn -acodec pcm_s16le /tmp/video_audio.wav
+ffprobe -hide_banner /tmp/video_audio.wav
+
 
 
 AudioTest
@@ -587,7 +651,8 @@ AudioTest
 ./gradlew installDebug && adb shell am start -n com.rec.recmov/.MainActivity && adb logcat -c && adb logcat -v threadtime | grep -E "AudioDevice"
 adb logcat -c && adb logcat -v threadtime | grep -E "AudioDevice"
 adb logcat -c && adb logcat -v threadtime | grep -E "AudioTest"
-adb logcat -c && adb logcat -v threadtime | grep -E "AudioRecord:|AudioDevice:"
+adb logcat -c && adb logcat -v threadtime | grep -E "AudioInputDevice|CommunicationDevice"
+"AudioRecord:|AudioDevice:"
 "AudioDevice:|prepareToOpenStream|IN_MICROPHONE_BACK|source: CAMCORDER|usecase:.*CAMCORDER"
 "AudioDevice|prepareToOpenStream|IN_MICROPHONE|CAMCORDER"
 "AudioDevice|setCommunicationDevice|AudioPolicy|CAMCORDER|IN_MICROPHONE"
@@ -598,6 +663,9 @@ adb logcat -v threadtime | grep -E
 adb logcat -v threadtime | grep "AudioDevice:"
 
 adb logcat -v threadtime | grep -E
+
+adb logcat -v threadtime | grep -E
+
 
 ```
 

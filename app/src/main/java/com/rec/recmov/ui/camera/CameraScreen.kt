@@ -25,10 +25,21 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+
+
 @Composable
 fun CameraScreen(
     viewModel: CameraViewModel = viewModel()
 ) {
+
+    var showAudioDevices by remember {
+        mutableStateOf(false)
+    }
+
     val context = LocalContext.current
 
     val audioDeviceManager = AudioDeviceManager(context)
@@ -64,137 +75,210 @@ fun CameraScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        Column(
+        // ------------------------------------------------------------
+        // BOTÃO DE SELEÇÃO DE ÁUDIO
+        // ------------------------------------------------------------
+
+        Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 64.dp)
+                .align(Alignment.TopEnd)
+                .padding(
+                    top = 50.dp,
+                    end = 12.dp
+                )
+                .background(
+                    Color.Black.copy(alpha = 0.5f)
+                )
+                .clickable {
+                    showAudioDevices = !showAudioDevices
+                }
+                .padding(
+                    horizontal = 14.dp,
+                    vertical = 8.dp
+                )
         ) {
-            audioDevices.forEach { device ->
+            Text(
+                text = if (showAudioDevices) {
+                    "▲"
+                } else {
+                    "▼"
+                },
+                color = Color.White
+            )
+        }
+
+        // ------------------------------------------------------------
+        // LISTA DE DISPOSITIVOS DE ÁUDIO
+        // ------------------------------------------------------------
+
+        if (showAudioDevices) {
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(
+                        top = 100.dp,
+                        end = 12.dp
+                    )
+            ) {
+
+                audioDevices.forEach { device ->
+
+                    Text(
+                        text = audioDeviceName(device),
+                        modifier = Modifier
+                            .background(
+                                Color.Black.copy(alpha = 0.5f)
+                            )
+                            .clickable {
+
+                                viewModel.selectAudioDevice(device)
+
+                                if (
+                                    device.type ==
+                                    android.media.AudioDeviceInfo
+                                        .TYPE_BLUETOOTH_SCO
+                                ) {
+
+                                    val success =
+                                        audioDeviceManager
+                                            .setBluetoothCommunicationDevice()
+
+                                    println(
+                                        "AudioDevice: Bluetooth routing = $success"
+                                    )
+
+                                } else {
+
+                                    audioDeviceManager
+                                        .clearCommunicationDevice()
+                                }
+
+                                // Fecha a lista depois da seleção
+                                showAudioDevices = false
+                            }
+                            .padding(10.dp),
+                        color = Color.White
+                    )
+                }
+            }
+
+            // --------------------------------------------------------
+            // DISPOSITIVO SELECIONADO
+            // --------------------------------------------------------
+
+            viewModel.selectedAudioDevice?.let { device ->
+
                 Text(
-                    text = audioDeviceName(device),
+                    text = "Selecionado: ${audioDeviceName(device)}",
                     modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 100.dp)
                         .background(
                             Color.Black.copy(alpha = 0.5f)
                         )
-                        .clickable {
-
-                            viewModel.selectAudioDevice(device)
-
-                            if (
-                                device.type ==
-                                android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                            ) {
-                                val success =
-                                    audioDeviceManager
-                                        .setBluetoothCommunicationDevice()
-
-                                println( "AudioDevice: Bluetooth routing = $success")
-
-                            } else {
-                                audioDeviceManager.clearCommunicationDevice()
-                            }
-                        }
                         .padding(10.dp),
                     color = Color.White
                 )
             }
         }
 
+        // ------------------------------------------------------------
+        // BOTÃO REC
+        // ------------------------------------------------------------
 
-        viewModel.selectedAudioDevice?.let { device ->
-
-            Text(
-                text = "Selecionado: ${audioDeviceName(device)}",
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 100.dp)
-                    .background(
-                        Color.Black.copy(alpha = 0.5f)
-                    )
-                    .padding(10.dp),
-                color = Color.White
-            )
-        }
-
-
-        Button(
-            onClick = {
-
-                if (viewModel.isRecording) {
-
-                    viewModel.stopCurrentRecording()
-
-                } else {
-
-                    val videoCapture =
-                        viewModel.videoCapture
-                            ?: return@Button
-
-                    val name =
-                        "recmov_${System.currentTimeMillis()}.mp4"
-
-                    val contentValues =
-                        ContentValues().apply {
-                            put(
-                                MediaStore.Video.Media.DISPLAY_NAME,
-                                name
-                            )
-                            put(
-                                MediaStore.Video.Media.MIME_TYPE,
-                                "video/mp4"
-                            )
-                        }
-
-                    val mediaStoreOutput =
-                        MediaStoreOutputOptions
-                            .Builder(
-                                context.contentResolver,
-                                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-                            )
-                            .setContentValues(contentValues)
-                            .build()
-
-                    val recording =
-                        videoCapture.output
-                            .prepareRecording(
-                                context,
-                                mediaStoreOutput
-                            )
-                            .withAudioEnabled()
-                            .start(
-                                ContextCompat.getMainExecutor(context)
-                            ) { event ->
-
-                                when (event) {
-
-                                    is VideoRecordEvent.Start -> {
-                                        // gravação iniciada
-                                    }
-
-                                    is VideoRecordEvent.Finalize -> {
-
-                                        if (
-                                            !event.hasError()
-                                        ) {
-                                            // vídeo salvo
-                                        }
-                                    }
-                                }
-                            }
-
-                    viewModel.startRecording(recording)
-                }
-            },
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 32.dp)
+                .background(
+                    Color.Black.copy(alpha = 0.5f)
+                )
+                .clickable {
+
+                    if (viewModel.isRecording) {
+
+                        viewModel.stopCurrentRecording()
+
+                    } else {
+
+                        val videoCapture =
+                            viewModel.videoCapture
+                                ?: return@clickable
+
+                        val name =
+                            "recmov_${System.currentTimeMillis()}.mp4"
+
+                        val contentValues =
+                            ContentValues().apply {
+
+                                put(
+                                    MediaStore.Video.Media.DISPLAY_NAME,
+                                    name
+                                )
+
+                                put(
+                                    MediaStore.Video.Media.MIME_TYPE,
+                                    "video/mp4"
+                                )
+                            }
+
+                        val mediaStoreOutput =
+                            MediaStoreOutputOptions
+                                .Builder(
+                                    context.contentResolver,
+                                    MediaStore.Video.Media
+                                        .EXTERNAL_CONTENT_URI
+                                )
+                                .setContentValues(
+                                    contentValues
+                                )
+                                .build()
+
+                        val recording =
+                            videoCapture.output
+                                .prepareRecording(
+                                    context,
+                                    mediaStoreOutput
+                                )
+                                .withAudioEnabled()
+                                .start(
+                                    ContextCompat.getMainExecutor(
+                                        context
+                                    )
+                                ) { event ->
+
+                                    when (event) {
+
+                                        is VideoRecordEvent.Start -> {
+                                            // gravação iniciada
+                                        }
+
+                                        is VideoRecordEvent.Finalize -> {
+
+                                            if (!event.hasError()) {
+                                                // vídeo salvo
+                                            }
+                                        }
+                                    }
+                                }
+
+                        viewModel.startRecording(recording)
+                    }
+                }
+                .padding(
+                    horizontal = 20.dp,
+                    vertical = 10.dp
+                )
         ) {
+
             Text(
-                if (viewModel.isRecording) {
+                text = if (viewModel.isRecording) {
                     "stop"
                 } else {
                     "rec"
-                }
+                },
+                color = Color.White
             )
         }
     }
